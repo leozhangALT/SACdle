@@ -19,7 +19,7 @@ export interface TeamProperty {
   id: string;
   team_id: string;
   label: string;
-  position: number;
+  position: number | null;
   created_at: string;
 }
 

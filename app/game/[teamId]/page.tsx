@@ -7,7 +7,6 @@ import type { Team, MemberWithClues, Clue, GamePhase, TeamProperty } from '@/lib
 import ClueBoard from '@/components/game/ClueBoard';
 import GuessPanel from '@/components/game/GuessPanel';
 import ScoreBar from '@/components/game/ScoreBar';
-import RoundResult from '@/components/game/RoundResult';
 import EndScreen from '@/components/game/EndScreen';
 
 interface RoundEntry {
@@ -34,6 +33,7 @@ export default function GamePage({ params }: Props) {
   const [team, setTeam] = useState<Team | null>(null);
   const [allMembers, setAllMembers] = useState<MemberWithClues[]>([]);
   const [propertyLabels, setPropertyLabels] = useState<Map<string, string>>(new Map());
+  const [propertyPositions, setPropertyPositions] = useState<Map<string, number | null>>(new Map());
   const [phase, setPhase] = useState<GamePhase>('loading');
   const [error, setError] = useState('');
 
@@ -45,8 +45,10 @@ export default function GamePage({ params }: Props) {
   const [currentMember, setCurrentMember] = useState<MemberWithClues | null>(null);
   const [shuffledClues, setShuffledClues] = useState<Clue[]>([]);
   const [revealedCount, setRevealedCount] = useState(2);
-  const [guess, setGuess] = useState('');
   const [lastResult, setLastResult] = useState<{ status: 'correct' | 'failed'; pts: number } | null>(null);
+  const [correct, setCorrect] = useState(false);
+  const [correctName, setCorrectName] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     params.then((p) => setTeamId(p.teamId));
@@ -73,7 +75,11 @@ export default function GamePage({ params }: Props) {
     const labels = new Map<string, string>(
       (props as TeamProperty[]).map((p) => [p.id, p.label])
     );
+    const positions = new Map<string, number | null>(
+      (props as TeamProperty[]).map((p) => [p.id, p.position])
+    );
     setPropertyLabels(labels);
+    setPropertyPositions(positions);
     const playable = (m as MemberWithClues[]).filter((mem) => (mem.clues?.length ?? 0) >= 2);
     setAllMembers(playable);
     setPhase('idle');
@@ -96,22 +102,33 @@ export default function GamePage({ params }: Props) {
     const [next, ...rest] = memberQueue;
     setQueue(rest);
     setCurrentMember(next);
-    setShuffledClues(shuffle(next.clues ?? []));
+
+    const clues = next.clues ?? [];
+    const pinned = clues
+      .filter((c) => propertyPositions.get(c.property_id) != null)
+      .sort((a, b) => (propertyPositions.get(a.property_id) ?? 0) - (propertyPositions.get(b.property_id) ?? 0));
+    const random = shuffle(clues.filter((c) => propertyPositions.get(c.property_id) == null));
+
+    setShuffledClues([...pinned, ...random]);
     setRevealedCount(2);
-    setGuess('');
     setLastResult(null);
+    setCorrect(false);
+    setCorrectName(null);
+    setFailed(false);
     setPhase('playing');
   }
 
-  function handleGuess(): boolean {
-    if (!currentMember || !guess) return false;
-    if (guess === currentMember.name) {
+  function handleGuess(name: string): boolean {
+    if (!currentMember) return false;
+    if (name === currentMember.name) {
       const pts = calculatePoints(revealedCount);
       setScore((s) => s + pts);
       setLastResult({ status: 'correct', pts });
       setRoundHistory((h) => [...h, { name: currentMember.name, score: pts, status: 'correct' }]);
       setRoundsPlayed((r) => r + 1);
-      setPhase('round-result');
+      setCorrect(true);
+      setCorrectName(name);
+      setRevealedCount(shuffledClues.length);
       return true;
     } else {
       const next = revealedCount + 1;
@@ -119,11 +136,11 @@ export default function GamePage({ params }: Props) {
         setLastResult({ status: 'failed', pts: 0 });
         setRoundHistory((h) => [...h, { name: currentMember.name, score: 0, status: 'failed' }]);
         setRoundsPlayed((r) => r + 1);
-        setPhase('round-result');
+        setFailed(true);
+        setRevealedCount(shuffledClues.length);
         return true;
       }
       setRevealedCount(next);
-      setGuess('');
       return false;
     }
   }
@@ -135,11 +152,11 @@ export default function GamePage({ params }: Props) {
       setLastResult({ status: 'failed', pts: 0 });
       setRoundHistory((h) => [...h, { name: currentMember.name, score: 0, status: 'failed' }]);
       setRoundsPlayed((r) => r + 1);
-      setPhase('round-result');
+      setFailed(true);
+      setRevealedCount(shuffledClues.length);
       return;
     }
     setRevealedCount(next);
-    setGuess('');
   }
 
   function handleNext() {
@@ -214,25 +231,14 @@ export default function GamePage({ params }: Props) {
 
   return (
     <main className="min-h-screen bg-gray-950 px-4 py-6">
-      <div className="max-w-lg mx-auto space-y-5">
+      <div className="max-w-lg mx-auto space-y-5 pt-8">
         <ScoreBar
           score={score}
-          round={roundsPlayed + (phase === 'round-result' ? 0 : 1)}
+          round={roundsPlayed + (correct || failed ? 0 : 1)}
           total={allMembers.length}
         />
 
-        {phase === 'round-result' && lastResult && currentMember ? (
-          <RoundResult
-            status={lastResult.status}
-            memberName={currentMember.name}
-            photoUrl={currentMember.photo_url}
-            pointsEarned={lastResult.pts}
-            cluesShown={revealedCount}
-            isLast={isLast}
-            onNext={handleNext}
-          />
-        ) : (
-          <>
+        <>
             <div className="text-center">
               <p className="text-xs uppercase tracking-widest text-gray-500 font-semibold">
                 Who is this person?
@@ -247,21 +253,37 @@ export default function GamePage({ params }: Props) {
             />
 
             <GuessPanel
+              key={currentMember?.id}
               memberNames={memberNames}
-              value={guess}
-              onChange={setGuess}
               onGuess={handleGuess}
-              onPass={handlePass}
+              onPass={correct || failed ? handleNext : handlePass}
               disabled={false}
+              correct={correct}
+              correctName={correctName}
+              failed={failed}
             />
 
-            <p className="text-center text-xs text-gray-600">
-              {shuffledClues.length - revealedCount > 0
-                ? `${shuffledClues.length - revealedCount} more clue${shuffledClues.length - revealedCount !== 1 ? 's' : ''} available`
-                : 'All clues revealed — final chance!'}
-            </p>
+            {failed && currentMember && (
+              <div className="rounded-xl bg-red-950 border border-red-800 px-5 py-4 text-center space-y-1">
+                <p className="text-xs uppercase tracking-widest text-red-400 font-semibold">It was</p>
+                <p className="text-2xl font-black text-white">{currentMember.name}</p>
+              </div>
+            )}
+
+            {correct && currentMember && (
+              <p className="text-center text-xs text-gray-600">
+                {isLast ? 'last round!' : `${queue.length} left`}
+              </p>
+            )}
+
+            {!correct && !failed && (
+              <p className="text-center text-xs text-gray-600">
+                {shuffledClues.length - revealedCount > 0
+                  ? `${shuffledClues.length - revealedCount} more clue${shuffledClues.length - revealedCount !== 1 ? 's' : ''} available`
+                  : 'All clues revealed — final chance!'}
+              </p>
+            )}
           </>
-        )}
       </div>
     </main>
   );

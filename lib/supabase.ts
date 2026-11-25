@@ -21,7 +21,7 @@ export async function fetchTeamProperties(teamId: string): Promise<TeamProperty[
     .from('team_properties')
     .select('*')
     .eq('team_id', teamId)
-    .order('position', { ascending: true });
+    .order('position', { ascending: true, nullsFirst: false });
   return data ?? [];
 }
 

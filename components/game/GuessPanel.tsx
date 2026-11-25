@@ -4,58 +4,64 @@ import { useState } from 'react';
 
 interface Props {
   memberNames: string[];
-  value: string;
-  onChange: (v: string) => void;
-  onGuess: () => void;
+  onGuess: (name: string) => boolean;
   onPass: () => void;
   disabled: boolean;
+  correct?: boolean;
+  correctName?: string | null;
+  failed?: boolean;
 }
 
-export default function GuessPanel({ memberNames, value, onChange, onGuess, onPass, disabled }: Props) {
+export default function GuessPanel({ memberNames, onGuess, onPass, disabled, correct, correctName, failed }: Props) {
   const sorted = [...memberNames].sort((a, b) => a.localeCompare(b));
-  const [wrong, setWrong] = useState(false);
+  const [flashWrong, setFlashWrong] = useState<string | null>(null);
+  const [guessedWrong, setGuessedWrong] = useState<Set<string>>(new Set());
 
-  function handleGuess() {
-    const wasCorrect = onGuess();
-    if (wasCorrect === false) {
-      setWrong(true);
-      setTimeout(() => setWrong(false), 1200);
+  function handleNameGuess(name: string) {
+    const wasCorrect = onGuess(name);
+    if (!wasCorrect && !failed) {
+      setGuessedWrong((prev) => new Set(prev).add(name));
+      setFlashWrong(name);
+      setTimeout(() => setFlashWrong(null), 1200);
     }
   }
 
   return (
     <div className="space-y-3">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        className="w-full px-4 py-3 rounded-xl bg-gray-800 border border-gray-700 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50"
-      >
-        <option value="">— Who is this? —</option>
+      <div className="grid grid-cols-2 gap-2">
         {sorted.map((name) => (
-          <option key={name} value={name}>
+          <button
+            key={name}
+            onClick={() => handleNameGuess(name)}
+            disabled={disabled || correct || failed || guessedWrong.has(name)}
+            className={`py-2.5 px-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed ${
+              flashWrong === name
+                ? 'bg-red-900 text-red-300 border border-red-800'
+                : guessedWrong.has(name)
+                ? 'bg-red-900 text-red-300 border border-red-800'
+                : correct && correctName === name
+                ? 'bg-green-900 text-green-300 border border-green-800'
+                : correct || failed
+                ? 'bg-gray-800 text-gray-600 opacity-30 border border-transparent'
+                : 'bg-gray-800 hover:bg-indigo-600 hover:text-white text-gray-200 border border-gray-700 hover:border-indigo-500'
+            }`}
+          >
             {name}
-          </option>
+          </button>
         ))}
-      </select>
-      <div className="flex gap-3">
-        <button
-          onClick={handleGuess}
-          disabled={disabled || !value}
-          className={`flex-1 py-3 rounded-xl font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-            wrong ? 'bg-red-600 hover:bg-red-600' : 'bg-indigo-600 hover:bg-indigo-500'
-          }`}
-        >
-          Guess
-        </button>
-        <button
-          onClick={onPass}
-          disabled={disabled}
-          className="flex-1 py-3 rounded-xl bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-gray-300 transition-colors"
-        >
-          Pass / More clues
-        </button>
       </div>
+
+      <button
+        onClick={onPass}
+        disabled={disabled}
+        className={`w-full py-3 rounded-xl font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+          correct || failed
+            ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
+            : 'bg-gray-800 hover:bg-gray-700 text-gray-400 font-semibold'
+        }`}
+      >
+        {correct || failed ? 'Continue →' : 'Pass / More clues'}
+      </button>
     </div>
   );
 }

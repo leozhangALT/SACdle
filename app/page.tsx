@@ -37,9 +37,6 @@ export default function Home() {
           <h1 className="text-5xl font-black tracking-tight">
             <span style={{ color: '#0070F2' }}>SAC</span><span className="text-white">dle</span>
           </h1>
-          <p className="text-gray-400 text-lg">
-            Progressive clue reveal. For your team.
-          </p>
         </div>
 
         {/* Public teams */}
