@@ -10,9 +10,10 @@ interface Props {
   correct?: boolean;
   correctName?: string | null;
   failed?: boolean;
+  guessedCorrectly?: Set<string>;
 }
 
-export default function GuessPanel({ memberNames, onGuess, onPass, disabled, correct, correctName, failed }: Props) {
+export default function GuessPanel({ memberNames, onGuess, onPass, disabled, correct, correctName, failed, guessedCorrectly }: Props) {
   const sorted = [...memberNames].sort((a, b) => a.localeCompare(b));
   const [flashWrong, setFlashWrong] = useState<string | null>(null);
   const [guessedWrong, setGuessedWrong] = useState<Set<string>>(new Set());
@@ -33,14 +34,14 @@ export default function GuessPanel({ memberNames, onGuess, onPass, disabled, cor
           <button
             key={name}
             onClick={() => handleNameGuess(name)}
-            disabled={disabled || correct || failed || guessedWrong.has(name)}
+            disabled={disabled || correct || failed || guessedWrong.has(name) || guessedCorrectly?.has(name)}
             className={`py-2.5 px-3 rounded-xl font-semibold text-sm transition-colors disabled:cursor-not-allowed ${
-              flashWrong === name
-                ? 'bg-red-900 text-red-300 border border-red-800'
-                : guessedWrong.has(name)
+              flashWrong === name || guessedWrong.has(name)
                 ? 'bg-red-900 text-red-300 border border-red-800'
                 : correct && correctName === name
                 ? 'bg-green-900 text-green-300 border border-green-800'
+                : guessedCorrectly?.has(name)
+                ? 'bg-gray-800 text-gray-600 opacity-30 border border-transparent'
                 : correct || failed
                 ? 'bg-gray-800 text-gray-600 opacity-30 border border-transparent'
                 : 'bg-gray-800 hover:bg-indigo-600 hover:text-white text-gray-200 border border-gray-700 hover:border-indigo-500'

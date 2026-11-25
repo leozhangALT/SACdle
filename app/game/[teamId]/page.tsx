@@ -49,6 +49,7 @@ export default function GamePage({ params }: Props) {
   const [correct, setCorrect] = useState(false);
   const [correctName, setCorrectName] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [guessedCorrectly, setGuessedCorrectly] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     params.then((p) => setTeamId(p.teamId));
@@ -95,6 +96,7 @@ export default function GamePage({ params }: Props) {
     setScore(0);
     setRoundsPlayed(0);
     setRoundHistory([]);
+    setGuessedCorrectly(new Set());
     startRound(shuffled);
   }
 
@@ -128,6 +130,7 @@ export default function GamePage({ params }: Props) {
       setRoundsPlayed((r) => r + 1);
       setCorrect(true);
       setCorrectName(name);
+      setGuessedCorrectly((prev) => new Set(prev).add(name));
       setRevealedCount(shuffledClues.length);
       return true;
     } else {
@@ -261,6 +264,7 @@ export default function GamePage({ params }: Props) {
               correct={correct}
               correctName={correctName}
               failed={failed}
+              guessedCorrectly={guessedCorrectly}
             />
 
             {failed && currentMember && (
