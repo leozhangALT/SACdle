@@ -226,13 +226,13 @@ export default function AdminTeamPage({ params }: Props) {
                   onClick={toggleReady}
                   disabled={togglingReady || (!team.is_ready && !meetsReadyRequirements)}
                   title={!meetsReadyRequirements && !team.is_ready ? 'Need 2+ members with all properties filled' : undefined}
-                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-24 ${
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-36 ${
                     team.is_ready
                       ? 'bg-indigo-700 hover:bg-indigo-600 text-white'
                       : 'bg-green-700 hover:bg-green-600 text-white'
                   }`}
                 >
-                  {team.is_ready ? 'Draft' : 'Publish'}
+                  {team.is_ready ? 'Convert to Draft' : 'Publish Game'}
                 </button>
                 <button
                   onClick={togglePublic}
@@ -245,14 +245,14 @@ export default function AdminTeamPage({ params }: Props) {
               <div className="flex items-center gap-2">
                 <button
                   onClick={copyFillLink}
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-semibold text-sm transition-colors w-24"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-semibold text-sm transition-colors w-36"
                 >
                   {copiedFill ? 'Copied!' : (
                     <>
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                         <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
                       </svg>
-                    Invite
+                    Invite to Fill
                     </>
                   )}
                 </button>

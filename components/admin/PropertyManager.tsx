@@ -31,6 +31,7 @@ interface Props {
 export default function PropertyManager({ teamId, properties, onRefresh }: Props) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [localOrdered, setLocalOrdered] = useState<TeamProperty[]>(() =>
     properties.filter((p) => p.position != null).sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
   );
@@ -38,18 +39,17 @@ export default function PropertyManager({ teamId, properties, onRefresh }: Props
     properties.filter((p) => p.position == null)
   );
 
-  // Sync when parent re-fetches
   const prevKey = useRef(properties.map((p) => `${p.id}:${p.position}`).join(','));
+  const dragSrc = useRef<{ section: 'ordered' | 'random'; index: number } | null>(null);
+  const dropTarget = useRef<{ section: 'ordered' | 'random'; index: number } | null>(null);
+
+  // Sync when parent re-fetches
   const currentKey = properties.map((p) => `${p.id}:${p.position}`).join(',');
   if (prevKey.current !== currentKey) {
     prevKey.current = currentKey;
     setLocalOrdered(properties.filter((p) => p.position != null).sort((a, b) => (a.position ?? 0) - (b.position ?? 0)));
     setLocalRandom(properties.filter((p) => p.position == null));
   }
-
-  // Track drag source and current hover target — no state mutation during drag
-  const dragSrc = useRef<{ section: 'ordered' | 'random'; index: number } | null>(null);
-  const dropTarget = useRef<{ section: 'ordered' | 'random'; index: number } | null>(null);
 
   const existingLabels = new Set(properties.map((p) => p.label.toLowerCase()));
 
@@ -65,6 +65,7 @@ export default function PropertyManager({ teamId, properties, onRefresh }: Props
 
   async function removeProperty(id: string) {
     await supabase.from('team_properties').delete().eq('id', id);
+    setConfirmDeleteId(null);
     onRefresh();
   }
 
@@ -171,7 +172,7 @@ export default function PropertyManager({ teamId, properties, onRefresh }: Props
               </svg>
               <span className="text-sm font-medium text-gray-200 flex-1">{p.label}</span>
               <span className="text-xs text-indigo-400 font-semibold">#{i + 1}</span>
-              <button onClick={() => removeProperty(p.id)} className="text-gray-600 hover:text-red-400 transition-colors leading-none">✕</button>
+              <button onClick={() => setConfirmDeleteId(p.id)} className="text-gray-600 hover:text-red-400 transition-colors leading-none">✕</button>
             </div>
           ))
         )}
@@ -210,7 +211,7 @@ export default function PropertyManager({ teamId, properties, onRefresh }: Props
                 <path d="M7 2a1 1 0 000 2 1 1 0 000-2zM7 8a1 1 0 000 2 1 1 0 000-2zM7 14a1 1 0 000 2 1 1 0 000-2zM13 2a1 1 0 000 2 1 1 0 000-2zM13 8a1 1 0 000 2 1 1 0 000-2zM13 14a1 1 0 000 2 1 1 0 000-2z" />
               </svg>
               <span className="text-sm font-medium text-gray-200 flex-1">{p.label}</span>
-              <button onClick={() => removeProperty(p.id)} className="text-gray-600 hover:text-red-400 transition-colors leading-none">✕</button>
+              <button onClick={() => setConfirmDeleteId(p.id)} className="text-gray-600 hover:text-red-400 transition-colors leading-none">✕</button>
             </div>
           ))
         )}
@@ -251,6 +252,36 @@ export default function PropertyManager({ teamId, properties, onRefresh }: Props
           </div>
         </div>
       )}
+
+      {/* Delete confirmation modal */}
+      {confirmDeleteId && (() => {
+        const prop = properties.find((p) => p.id === confirmDeleteId);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4" onClick={() => setConfirmDeleteId(null)}>
+            <div className="absolute inset-0 bg-black/60" />
+            <div className="relative bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-white">Delete property?</h3>
+              <p className="text-gray-400 text-sm">
+                <span className="text-white font-semibold">"{prop?.label}"</span> and all member answers for it will be permanently deleted.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDeleteId(null)}
+                  className="flex-1 py-2.5 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-sm transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => removeProperty(confirmDeleteId)}
+                  className="flex-1 py-2.5 rounded-xl bg-red-700 hover:bg-red-600 text-white font-semibold text-sm transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
